@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr" class="antialiased">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LGm@d - Portail Santé</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Framer Motion for animations (optional via external lib but we'll use Tailwind transitions) -->
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            primary: '#ff7733', // Orange vif
+            primaryDark: '#e65c00',
+            secondary: '#1d5a49', // Vert profond
+            secondaryLight: '#2a7c64',
+            surface: 'rgba(255, 255, 255, 0.8)',
+          },
+          animation: {
+            blob: 'blob 7s infinite',
+          },
+          keyframes: {
+            blob: {
+              '0%': { transform: 'translate(0px, 0px) scale(1)' },
+              '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+              '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+              '100%': { transform: 'translate(0px, 0px) scale(1)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #f0f4f8;
+      background-image: radial-gradient(at 0% 0%, rgba(255, 119, 51, 0.1) 0, transparent 50%), 
+                        radial-gradient(at 100% 0%, rgba(29, 90, 73, 0.1) 0, transparent 50%);
+      background-attachment: fixed;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+    }
+    .hover-lift {
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.12);
+    }
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #1d5a49;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #1d5a49;
+    }
+  </style>
+</head>
+<body class="text-gray-800 min-h-screen relative overflow-x-hidden">
+
+  <!-- Background Animated Blobs -->
+  <div class="fixed inset-0 w-full h-full -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+    <div class="absolute top-[20%] right-[-10%] w-[30rem] h-[30rem] bg-secondaryLight/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style="animation-delay: 2s"></div>
+    <div class="absolute bottom-[-20%] left-[20%] w-[25rem] h-[25rem] bg-orange-200/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" style="animation-delay: 4s"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 glass-card mx-4 lg:mx-8 mt-4 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-8">
+      <!-- Logo placeholder -->
+      <a href="#" class="text-2xl font-extrabold text-secondary flex items-center gap-2">
+        <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z"/></svg>
+        LGm@d
+      </a>
+      
+      <!-- Navigation -->
+      <nav class="hidden md:flex gap-6 font-medium text-gray-600">
+        <a href="#" class="text-primary font-semibold border-b-2 border-primary pb-1">Accueil</a>
+        <a href="#" class="hover:text-primary transition-colors pb-1">Catalogue</a>
+        <a href="#" class="hover:text-primary transition-colors pb-1">Documentation</a>
+      </nav>
+    </div>
+
+    <div class="flex flex-1 max-w-xl mx-8 hidden lg:block">
+      <div class="relative w-full">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </span>
+        <input type="text" placeholder="Rechercher une pathologie, un produit..." class="w-full bg-white/70 border border-gray-200 rounded-full py-2.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm text-sm" />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-5">
+      <!-- Icons -->
+      <button class="relative p-2 text-gray-500 hover:text-primary transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+      </button>
+      
+      <!-- Mode Toggle -->
+      <div class="flex items-center gap-3 bg-gray-100/50 p-1.5 rounded-full border border-gray-200 shadow-inner">
+        <span class="text-xs font-semibold px-3 py-1 bg-white rounded-full shadow-sm text-primary">Comptoir</span>
+        <label class="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in cursor-pointer">
+          <input type="checkbox" name="toggle" id="toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 z-10 top-0 left-0" />
+          <span class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></span>
+        </label>
+        <span class="text-xs font-medium px-3 text-gray-500">Gestion</span>
+      </div>
+
+      <!-- User Profile -->
+      <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
+        <div class="hidden md:block text-right">
+          <p class="text-sm font-bold text-gray-800">Aprium Sud</p>
+          <p class="text-xs text-gray-500">Pharmacie</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center font-bold shadow-md">
+          AS
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 lg:px-8 py-12 lg:py-20 grid lg:grid-cols-12 gap-10">
+    
+    <!-- Left Column (Hero & Cards) -->
+    <div class="lg:col-span-8 flex flex-col gap-12">
+      <div class="space-y-6 max-w-2xl">
+        <h1 class="text-5xl lg:text-6xl font-extrabold leading-tight text-secondary">
+          Le réflexe <span class="text-primary relative inline-block">MAD<svg class="absolute w-full h-3 -bottom-1 left-0 text-primary/30" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0,5 Q50,15 100,5" stroke="currentColor" stroke-width="4" fill="none"/></svg></span> pour la pharmacie
+        </h1>
+        <p class="text-lg text-gray-600 font-medium">
+          Accélérez votre conseil, orientez précisément vos patients et accédez aux meilleures solutions de maintien à domicile avec notre IA et nos parcours guidés.
+        </p>
+      </div>
+
+      <!-- Cards Grid -->
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- Card 1 -->
+        <a href="#" class="glass-card p-6 flex flex-col gap-4 hover-lift group border-t-4 border-t-blue-400">
+          <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Questionnaire Autonomie</h3>
+            <p class="text-sm text-gray-500">Qualifiez rapidement la situation de votre patient en quelques étapes simples.</p>
+          </div>
+          <div class="mt-auto pt-4 flex items-center text-blue-500 font-semibold group-hover:gap-2 transition-all">
+            Démarrer <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- Card 2 -->
+        <a href="#" class="glass-card p-6 flex flex-col gap-4 hover-lift group border-t-4 border-t-secondary">
+          <div class="w-12 h-12 bg-secondaryLight/10 text-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Parcours Conseil</h3>
+            <p class="text-sm text-gray-500">Guides thématiques (chambre, salle de bain...) pour proposer le bon équipement.</p>
+          </div>
+          <div class="mt-auto pt-4 flex items-center text-secondary font-semibold group-hover:gap-2 transition-all">
+            Explorer <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- Card 3 -->
+        <a href="#" class="glass-card p-6 flex flex-col gap-4 hover-lift group border-t-4 border-t-primary">
+          <div class="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Catalogue Produits</h3>
+            <p class="text-sm text-gray-500">Accédez à l'ensemble de nos références, avec prix et disponibilités instantanées.</p>
+          </div>
+          <div class="mt-auto pt-4 flex items-center text-primary font-semibold group-hover:gap-2 transition-all">
+            Voir le catalogue <span>&rarr;</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Column (AI Assistant) -->
+    <div class="lg:col-span-4 mt-8 lg:mt-0">
+      <div class="glass-card h-full flex flex-col overflow-hidden relative border-t-0 rounded-[2rem] shadow-2xl shadow-primary/10">
+        <!-- AI Header -->
+        <div class="bg-gradient-to-r from-secondary to-secondaryLight p-6 text-white text-center relative overflow-hidden">
+          <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPC9zdmc+')] opacity-20"></div>
+          <div class="relative z-10 flex flex-col items-center gap-3">
+            <div class="relative">
+              <div class="absolute inset-0 bg-white/30 rounded-full animate-ping"></div>
+              <img src="https://ui-avatars.com/api/?name=Hellia&background=fff&color=1d5a49&rounded=true&bold=true" alt="Hellia" class="w-16 h-16 rounded-full border-4 border-white/20 relative z-10 shadow-lg"/>
+              <span class="absolute bottom-0 right-0 w-4 h-4 bg-green-400 border-2 border-secondary rounded-full z-20"></span>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold flex items-center justify-center gap-2">Hellia <span class="text-[0.6rem] px-2 py-0.5 bg-white/20 rounded-full uppercase tracking-wider">IA Bêta</span></h2>
+              <p class="text-sm text-white/80">Votre conseillère MAD en ligne</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 p-6 flex flex-col gap-4 bg-white/40 overflow-y-auto min-h-[300px]">
+          <!-- Message Bot -->
+          <div class="flex gap-3 max-w-[90%]">
+            <div class="w-8 h-8 rounded-full bg-secondary flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm">H</div>
+            <div class="bg-white p-3 rounded-2xl rounded-tl-none text-sm text-gray-700 shadow-sm border border-gray-100">
+              Bonjour ! Je suis Hellia. Comment puis-je vous accompagner aujourd'hui pour conseiller votre patient ?
+            </div>
+          </div>
+          <!-- Quick Suggestions -->
+          <div class="flex flex-wrap gap-2 mt-2 ml-11">
+            <button class="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-50 hover:border-primary hover:text-primary transition shadow-sm">Recherche déambulateur</button>
+            <button class="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:bg-gray-50 hover:border-primary hover:text-primary transition shadow-sm">Aide salle de bain</button>
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 bg-white border-t border-gray-100">
+          <div class="relative flex items-center">
+            <input type="text" placeholder="Posez votre question à Hellia..." class="w-full bg-gray-50 border border-gray-200 rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm transition" />
+            <button class="absolute right-2 p-2 bg-primary text-white rounded-full hover:bg-primaryDark transition shadow-md hover:shadow-lg transform hover:scale-105">
+              <svg class="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
