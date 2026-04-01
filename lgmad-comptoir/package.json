@@ -1,0 +1,35 @@
+{
+  "name": "lgmad-comptoir",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@ai-sdk/mistral": "^3.0.27",
+    "@mistralai/mistralai": "^2.1.2",
+    "@supabase/supabase-js": "^2.100.0",
+    "ai": "^6.0.137",
+    "next": "16.2.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.3.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "papaparse": "^5.5.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
