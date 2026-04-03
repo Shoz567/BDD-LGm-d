@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,19 +20,22 @@ const INITIAL_MESSAGE: ChatMessage = {
   content: '',
   timestamp: new Date(),
   quickActions: [
-    { label: '👤 Je réponds pour moi', value: 'Je suis le patient et je réponds pour moi-même.' },
-    { label: '🤝 Je réponds pour un proche', value: "Je réponds pour un proche. Je suis son aidant." },
+    { label: 'Je réponds pour moi', value: 'Je suis le patient et je réponds pour moi-même.' },
+    { label: 'Je réponds pour un proche', value: "Je réponds pour un proche. Je suis son aidant." },
   ],
   metadata: { step: 'welcome' },
 };
 
-const WELCOME_MESSAGE = `Bonjour et bienvenue ! 👋
+const WELCOME_MESSAGE = `Bonjour et bienvenue !
 
-Je suis l'assistant LGm@d, votre conseiller en matériel médical de maintien à domicile.
+Je suis Hellia, votre conseillère en matériel de maintien à domicile. Je vais vous poser quelques questions pour vous orienter vers les équipements les mieux adaptés. Cela prend environ **3 à 5 minutes**.
 
-Je vais vous poser quelques questions pour vous proposer les équipements les plus adaptés à votre situation. Cela prend environ **3 à 5 minutes**.
+**Commençons :** répondez-vous pour vous-même ou pour un proche ?`;
 
-**Commençons par une première question :** répondez-vous pour vous-même ou pour un proche ?`;
+// Supprime les emoji éventuellement retournés par le modèle dans les labels
+function cleanLabel(label: string): string {
+  return label.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{FE00}-\u{FE0F}]/gu, '').trim();
+}
 
 export default function ComptoirPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -60,7 +62,7 @@ export default function ComptoirPage() {
   const [isSTTListening, setIsSTTListening] = useState(false);
   const [messageGlobal, setMessageGlobal] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chat' | 'report'>('chat');
-  const [isRecommending, setIsRecommending] = useState(false);
+  const [, setIsRecommending] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -255,6 +257,9 @@ export default function ComptoirPage() {
   const totalSteps = 10;
   const progress = Math.min((completedSteps / totalSteps) * 100, 100);
 
+  const lastMsg = messages[messages.length - 1];
+  const hasQuickActions = lastMsg?.role === 'assistant' && (lastMsg?.quickActions?.length ?? 0) > 0;
+
   if (showConsent && !consentGiven) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -303,66 +308,61 @@ export default function ComptoirPage() {
         <PersonaSelector onSelect={loadPersona} onClose={() => setShowPersonaSelector(false)} />
       )}
 
-      {/* Trailing progress bar */}
-      {completedSteps > 0 && (
-        <div className="h-1 bg-gray-100 w-full absolute top-0 left-0 z-50">
-          <div 
-            className="h-full bg-gradient-to-r from-brand-primary to-brand-accent transition-all duration-700 ease-out rounded-r-full shadow-sm"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
+      {/* Progress bar */}
+      <div className="h-[3px] bg-gray-100 w-full flex-shrink-0">
+        <div
+          className="h-full bg-gradient-to-r from-brand-primary to-brand-accent transition-all duration-700 ease-out"
+          style={{ width: completedSteps > 0 ? `${progress}%` : '0%' }}
+        />
+      </div>
 
-      {/* Secondary Actions Bar */}
-      <div className="w-full max-w-[1400px] mx-auto px-4 md:px-6 pt-4 pb-2 z-40 flex justify-between items-center relative">
-        <div className="text-[14px] font-bold text-text-main flex items-center gap-2 opacity-80">
-          {viewMode === 'chat' ? (
-            <><MessageSquare size={16} className="text-brand-primary" /> Assistant LGm@d</>
-          ) : (
-            <><FileText size={16} className="text-brand-primary" /> Bilan Clinique</>
-          )}
+      {/* Header bar */}
+      <div className="w-full max-w-[800px] mx-auto px-5 py-3 flex justify-between items-center flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <Image src="/hellia.png" width={30} height={30} alt="Hellia" className="rounded-full flex-shrink-0" />
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-bold text-text-main">
+              {viewMode === 'chat' ? 'Questionnaire autonomie' : 'Bilan clinique'}
+            </span>
+            {completedSteps > 0 && (
+              <span className="text-[12px] text-text-muted hidden sm:inline">· étape {completedSteps}/{totalSteps}</span>
+            )}
+          </div>
+          {gir && <div className="hidden sm:block"><GIRBadge gir={gir} /></div>}
         </div>
-        
-        <div className="flex items-center gap-1.5 md:gap-2">
-          {gir && <div className="px-2 border-r border-[var(--border-subtle)] mr-1 hidden sm:block"><GIRBadge gir={gir} /></div>}
-          
+
+        <div className="flex items-center gap-1.5">
           <button
-            className="flex items-center justify-center p-1.5 rounded-lg text-text-muted hover:bg-white hover:text-brand-primary transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary/20 backdrop-blur-sm bg-white/40 border border-white/60 shadow-sm"
             onClick={() => setIsTTSEnabled(!isTTSEnabled)}
             title={isTTSEnabled ? 'Désactiver la voix' : 'Activer la voix'}
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted hover:bg-white hover:text-brand-primary transition-colors border border-transparent hover:border-gray-200 hover:shadow-sm"
           >
-            {isTTSEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          </button>
-          
-          <button
-            className="flex items-center justify-center p-1.5 rounded-lg text-text-muted hover:bg-white hover:text-brand-primary transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary/20 backdrop-blur-sm bg-white/40 border border-white/60 shadow-sm"
-            onClick={() => {
-              setProfil({}); setGIR(null); setProduits([]);
-              setMessages([{ ...INITIAL_MESSAGE, content: WELCOME_MESSAGE }]);
-              setMessageGlobal(null); setViewMode('chat');
-            }}
-            title="Recommencer"
-          >
-            <RotateCcw size={18} />
+            {isTTSEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
 
           <button
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-orange-700 hover:text-orange-800 transition-colors font-bold text-[0.8rem] ml-1 bg-white/50 hover:bg-white/80 border border-orange-200/60 shadow-sm backdrop-blur-sm"
-            onClick={() => setShowPersonaSelector(true)}
+            onClick={() => { setProfil({}); setGIR(null); setProduits([]); setMessages([{ ...INITIAL_MESSAGE, content: WELCOME_MESSAGE }]); setMessageGlobal(null); setViewMode('chat'); }}
+            title="Recommencer"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted hover:bg-white hover:text-brand-primary transition-colors border border-transparent hover:border-gray-200 hover:shadow-sm"
           >
-            <Settings2 size={14} /> <span className="hidden sm:inline">Démo</span>
+            <RotateCcw size={15} />
+          </button>
+
+          <button
+            onClick={() => setShowPersonaSelector(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 transition-colors"
+          >
+            <Settings2 size={13} /> <span className="hidden sm:inline">Démo</span>
           </button>
 
           {produits.length > 0 && (
             <button
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary-light transition-colors font-bold text-[0.8rem] shadow-sm ml-1 md:ml-2"
               onClick={() => setViewMode(viewMode === 'chat' ? 'report' : 'chat')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white text-[12px] font-bold hover:bg-brand-primary-light transition-colors shadow-sm"
             >
-              {viewMode === 'chat' ? (
-                <><FileText size={14} /> <span className="hidden sm:inline">Rapport</span></>
-              ) : (
-                <><MessageSquare size={14} /> <span className="hidden sm:inline">Chat</span></>
-              )}
+              {viewMode === 'chat'
+                ? <><FileText size={13} /> <span className="hidden sm:inline">Rapport</span></>
+                : <><MessageSquare size={13} /> <span className="hidden sm:inline">Chat</span></>}
             </button>
           )}
         </div>
@@ -446,223 +446,168 @@ export default function ComptoirPage() {
           </div>
         </main>
       ) : (
-        <main className="flex-1 flex max-w-[1400px] w-full mx-auto relative overflow-hidden">
-          {/* Chat column */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-6 py-8 pt-20 pb-32 scroll-smooth">
-              <div className="max-w-3xl mx-auto flex flex-col gap-8">
-                {messages.map((msg, i) => (
-                  <div key={i} className={`animate-fade-in flex ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} gap-4 items-end`}>
-                    {/* Avatar */}
-                    <div className={`w-[42px] h-[42px] rounded-2xl flex-shrink-0 flex items-center justify-center text-lg shadow-lg relative bottom-1 ${
-                      msg.role === 'user' 
-                        ? 'bg-gradient-to-br from-brand-primary-light to-brand-primary text-white' 
-                        : 'bg-gradient-to-br from-brand-accent-light to-brand-accent text-white'
-                    }`}>
-                      {msg.role === 'user' ? '👤' : <Image src="/hellia.png" width={42} height={42} alt="IA" className="rounded-2xl object-cover border-2 border-white/20"/>}
-                    </div>
+        <main className="flex-1 flex flex-col w-full max-w-[680px] mx-auto px-4 overflow-hidden">
+          <div className="flex-1 overflow-y-auto py-6 space-y-3">
 
-                    <div className="flex-1 min-w-0 flex flex-col">
-                      {/* Bubble */}
-                      <div className={`inline-block px-5 py-4 max-w-[90%] shadow-md backdrop-blur-md ${
-                        msg.role === 'user'
-                          ? 'bg-brand-primary text-white self-end rounded-2xl rounded-br-sm'
-                          : 'glass-panel text-text-main self-start rounded-2xl rounded-bl-sm border-white/60'
-                      }`}>
-                        <div className="markdown-body" style={{ color: msg.role === 'user' ? '#fff' : 'inherit' }}>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                        </div>
-                      </div>
-  
-                      {/* Quick actions */}
-                      {msg.quickActions && msg.quickActions.length > 0 && i === messages.length - 1 && (
-                        <div className="flex flex-col gap-3 mt-4 max-w-xl self-start w-full">
-                          {msg.metadata?.step === 'priorites' ? (
-                            <>
-                              {msg.quickActions.map((action: QuickAction, ai: number) => {
-                                const isSelected = selectedPriorities.includes(action.label);
-                                return (
-                                  <button
-                                    key={ai}
-                                    onClick={() => {
-                                      if (isSelected) {
-                                        setSelectedPriorities(prev => prev.filter(p => p !== action.label));
-                                      } else if (selectedPriorities.length < 3) {
-                                        setSelectedPriorities(prev => [...prev, action.label]);
-                                      }
-                                    }}
-                                    disabled={isLoading}
-                                    className={`animate-fade-in flex gap-4 items-center p-4 border rounded-2xl transition-all duration-200 text-left ${
-                                      isSelected
-                                        ? 'border-brand-accent bg-orange-50 shadow-md text-brand-accent font-bold'
-                                        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm text-text-main'
-                                    } ${!isSelected && selectedPriorities.length >= 3 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                  >
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0 ${
-                                      isSelected ? 'bg-brand-accent border-brand-accent' : 'border-gray-300 bg-white'
-                                    }`}>
-                                      {isSelected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                                    </div>
-                                    <span className="text-[14px] leading-tight flex-1">
-                                      {action.label}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                              <button
-                                onClick={() => {
-                                  if (selectedPriorities.length > 0) {
-                                    sendMessage(selectedPriorities.join(', '));
-                                    setSelectedPriorities([]);
-                                  }
-                                }}
-                                disabled={selectedPriorities.length === 0 || isLoading}
-                                className={`mt-2 py-3.5 px-6 rounded-xl font-bold text-white transition-all shadow-md ${
-                                  selectedPriorities.length > 0 && !isLoading
-                                    ? 'bg-brand-primary hover:bg-brand-primary-light hover:shadow-lg cursor-pointer transform hover:-translate-y-0.5'
-                                    : 'bg-gray-300 cursor-not-allowed text-gray-500 shadow-none'
-                                }`}
-                              >
-                                Valider la sélection {selectedPriorities.length > 0 ? `(${selectedPriorities.length}/3)` : ''}
-                              </button>
-                            </>
-                          ) : (
-                            msg.quickActions.map((action: QuickAction, ai: number) => (
+            {/* Mode wizard : on affiche uniquement la question courante */}
+            {(() => {
+              const currentMsg = [...messages].reverse().find(m => m.role === 'assistant');
+              if (!currentMsg) return null;
+              return (
+                <div className="animate-fade-in space-y-3">
+                  {/* Question Hellia */}
+                  <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm border border-gray-100 px-6 py-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Image src="/hellia.png" width={24} height={24} alt="Hellia" className="rounded-full flex-shrink-0" />
+                      <span className="text-[12px] font-bold text-brand-primary">Hellia</span>
+                    </div>
+                    <div className="text-[15px] leading-relaxed text-text-main markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentMsg.content}</ReactMarkdown>
+                    </div>
+                  </div>
+
+                  {/* Boutons de réponse */}
+                  {currentMsg.quickActions && currentMsg.quickActions.length > 0 && (
+                    <div className="space-y-2">
+                      {currentMsg.metadata?.step === 'priorites' ? (
+                        <>
+                          {currentMsg.quickActions.map((action: QuickAction, ai: number) => {
+                            const isSelected = selectedPriorities.includes(action.label);
+                            return (
                               <button
                                 key={ai}
-                                onClick={() => sendMessage(action.label)}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedPriorities(prev => prev.filter(p => p !== action.label));
+                                  } else if (selectedPriorities.length < 3) {
+                                    setSelectedPriorities(prev => [...prev, action.label]);
+                                  }
+                                }}
                                 disabled={isLoading}
-                                className="animate-fade-in flex justify-between items-center p-4 border border-gray-200 bg-white rounded-2xl transition-all duration-200 text-left hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer shadow-sm group"
+                                className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl border transition-all duration-150 text-left ${
+                                  isSelected
+                                    ? 'border-brand-accent bg-orange-50 text-brand-accent font-semibold shadow-sm'
+                                    : 'border-gray-200 bg-white text-text-main hover:border-brand-primary/30 hover:bg-gray-50'
+                                } ${!isSelected && selectedPriorities.length >= 3 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                               >
-                                <span className="font-bold text-[14px] text-text-main group-hover:text-brand-primary transition-colors flex-1">
-                                  {action.label}
-                                </span>
-                                <span className="text-brand-accent opacity-0 group-hover:opacity-100 transform -translate-x-2 group-hover:translate-x-0 transition-all font-bold">
-                                  →
-                                </span>
+                                <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
+                                  isSelected ? 'bg-brand-accent border-brand-accent' : 'border-gray-300'
+                                }`}>
+                                  {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                                </div>
+                                <span className="text-[14px]">{cleanLabel(action.label)}</span>
                               </button>
-                            ))
-                          )}
-                        </div>
+                            );
+                          })}
+                          <button
+                            onClick={() => { if (selectedPriorities.length > 0) { sendMessage(selectedPriorities.join(', ')); setSelectedPriorities([]); } }}
+                            disabled={selectedPriorities.length === 0 || isLoading}
+                            className={`w-full mt-1 py-3.5 rounded-xl font-bold text-[14px] transition-all ${
+                              selectedPriorities.length > 0 && !isLoading
+                                ? 'bg-brand-primary text-white hover:bg-brand-primary-light shadow-md hover:-translate-y-0.5'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            Valider {selectedPriorities.length > 0 ? `(${selectedPriorities.length}/3)` : ''}
+                          </button>
+                        </>
+                      ) : (
+                        currentMsg.quickActions.map((action: QuickAction, ai: number) => (
+                          <button
+                            key={ai}
+                            onClick={() => sendMessage(action.label)}
+                            disabled={isLoading}
+                            className="group w-full flex items-center justify-between px-5 py-3.5 bg-white border border-gray-200 rounded-xl hover:border-brand-primary/40 hover:bg-gray-50 hover:shadow-sm transition-all duration-150 text-left cursor-pointer"
+                          >
+                            <span className="text-[14px] font-medium text-text-main group-hover:text-brand-primary transition-colors">
+                              {cleanLabel(action.label)}
+                            </span>
+                            <span className="text-gray-300 group-hover:text-brand-primary transition-colors ml-3 flex-shrink-0">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            </span>
+                          </button>
+                        ))
                       )}
                     </div>
-                  </div>
-                ))}
-  
-                {/* Typing indicator */}
-                {isLoading && (
-                  <div className="animate-fade-in flex flex-row gap-4 items-end">
-                    <div className="w-[42px] h-[42px] rounded-2xl flex-shrink-0 flex items-center justify-center text-lg shadow-lg relative bottom-1 bg-gradient-to-br from-brand-accent-light to-brand-accent">
-                      <Image src="/hellia.png" width={42} height={42} alt="IA" className="rounded-2xl object-cover border-2 border-white/20"/>
-                    </div>
-                    <div className="glass-panel px-5 py-4 max-w-[90%] border-white/60 self-start rounded-2xl rounded-bl-sm flex items-center">
-                      <div className="typing-dots flex gap-1.5 text-text-muted">
-                        <span/><span/><span/>
-                      </div>
-                    </div>
-                  </div>
-                )}
-  
-                {/* Ordonnance upload */}
-                {showOrdonnance && (
-                  <div className="premium-card p-6 border-l-4 border-l-brand-primary animate-fade-in mt-4">
-                    <h3 className="font-bold text-text-main mb-4 flex items-center gap-2">
-                      📄 Fournir l'ordonnance (Optionnel)
-                    </h3>
-                    <OrdonnanceUpload
-                      onUploadComplete={(data) => {
-                        const ordoMessage = `L'ordonnance a été analysée avec succès.\\nMédicaments: ${data.medicaments?.join(', ') || 'aucun'}\\nPathologies identifiées: ${data.pathologies?.join(', ') || 'aucune'}\\nDispositifs médicaux: ${data.dispositifsMedicaux?.join(', ') || 'aucun'}`;
-                        sendMessage(ordoMessage);
-                        setShowOrdonnance(false);
-                      }}
-                    />
-                    <button
-                      className="mt-4 w-full text-sm font-semibold text-text-muted hover:text-text-main py-2 transition-colors rounded-lg hover:bg-gray-50"
-                      onClick={() => { setShowOrdonnance(false); sendMessage("Pas d'ordonnance disponible pour l'instant."); }}
-                    >
-                      Continuer sans ordonnance →
-                    </button>
-                  </div>
-                )}
-  
-                <div ref={messagesEndRef} className="h-4" />
-              </div>
-            </div>
-  
-            {/* Input area */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-brand-page via-brand-page to-transparent pb-8">
-              <div className="max-w-3xl mx-auto">
-                <div className="flex items-end gap-3 bg-white p-2.5 rounded-3xl border border-gray-200 shadow-xl focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:border-brand-primary transition-all">
-                  <button
-                    onClick={toggleSTT}
-                    className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-xl transition-all duration-300 ${
-                      isSTTListening ? 'bg-orange-100 text-brand-accent shadow-inner animate-pulse' : 'text-gray-400 hover:bg-gray-100 hover:text-brand-primary'
-                    }`}
-                    title="Dicter"
-                  >
-                    🎤
-                  </button>
-
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Tapez ou dictez votre réponse…"
-                    rows={1}
-                    className="flex-1 py-3 px-2 min-h-[44px] max-h-[120px] bg-transparent border-none text-text-main placeholder:text-gray-400 outline-none resize-none font-sans text-[15px]"
-                    disabled={isLoading}
-                  />
-
-                  <button
-                    className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-xl font-black transition-all duration-300 ${
-                      input.trim() && !isLoading
-                        ? 'bg-brand-primary text-white shadow-lg hover:bg-brand-primary-light hover:scale-105 cursor-pointer'
-                        : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                    }`}
-                    onClick={() => sendMessage(input)}
-                    disabled={isLoading || !input.trim()}
-                  >
-                    ↑
-                  </button>
+                  )}
                 </div>
-                <p className="text-center text-[11px] text-text-muted font-medium mt-3 px-4">
-                  Cet outil est un assistant à l'orientation MAD. Il génère des pré-évaluations non engageantes sur le plan médical.
-                </p>
+              );
+            })()}
+
+            {/* Indicateur de chargement */}
+            {isLoading && (
+              <div className="flex items-start gap-2.5 animate-fade-in">
+                <Image src="/hellia.png" width={24} height={24} alt="" className="rounded-full flex-shrink-0 mt-1" />
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
+                  <div className="flex gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '120ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '240ms' }} />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Ordonnance upload */}
+            {showOrdonnance && (
+              <div className="bg-white border border-brand-primary/20 rounded-2xl p-5 shadow-sm animate-fade-in">
+                <h3 className="font-bold text-text-main mb-4 flex items-center gap-2 text-[14px]">
+                  📄 Fournir l'ordonnance <span className="text-text-muted font-normal">(optionnel)</span>
+                </h3>
+                <OrdonnanceUpload
+                  onUploadComplete={(data) => {
+                    const ordoMessage = `L'ordonnance a été analysée avec succès.\nMédicaments: ${data.medicaments?.join(', ') || 'aucun'}\nPathologies identifiées: ${data.pathologies?.join(', ') || 'aucune'}\nDispositifs médicaux: ${data.dispositifsMedicaux?.join(', ') || 'aucun'}`;
+                    sendMessage(ordoMessage);
+                    setShowOrdonnance(false);
+                  }}
+                />
+                <button
+                  className="mt-3 w-full text-[13px] font-medium text-text-muted hover:text-text-main py-2 transition-colors rounded-lg hover:bg-gray-50"
+                  onClick={() => { setShowOrdonnance(false); sendMessage("Pas d'ordonnance disponible pour l'instant."); }}
+                >
+                  Continuer sans ordonnance →
+                </button>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} className="h-2" />
           </div>
-  
-          {/* Right panel — Contextual info */}
-          {(produits.length > 0 || isRecommending) && (
-            <aside className="hidden lg:flex w-[380px] flex-col border-l border-gray-200/80 bg-white/40 backdrop-blur-md flex-shrink-0 h-full overflow-y-auto p-6 scroll-smooth">
 
-              {isRecommending && (
-                <div className="premium-card p-6 text-center mt-4 animate-fade-in border-brand-accent/30 bg-orange-50/50">
-                  <div className="flex justify-center mb-4 text-brand-accent">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-accent"></div>
-                  </div>
-                  <h4 className="font-bold text-text-main">Analyse clinique...</h4>
-                  <p className="text-xs text-text-muted mt-2">Corrélation du profil avec le catalogue MAD.</p>
-                </div>
-              )}
-
-              {produits.length > 0 && (
-                <div className="animate-fade-in mt-2 flex flex-col min-h-0">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-4 sticky top-0 bg-white/70 py-1 backdrop-blur-md z-10 w-full rounded-t-lg">
-                    Recommandations MAD
-                  </p>
-
-                  <div className="flex flex-col gap-4 pb-12">
-                    {produits.map((product, i) => (
-                      <ProductCard key={product.reference ?? i} product={product} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </aside>
+          {/* Input — uniquement quand pas de quick actions disponibles */}
+          {!hasQuickActions && !showOrdonnance && !isLoading && (
+            <div className="py-4 flex-shrink-0">
+              <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-2.5 focus-within:border-brand-primary/40 focus-within:shadow-md transition-all">
+                <button
+                  onClick={toggleSTT}
+                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base transition-all ${isSTTListening ? 'bg-orange-100 animate-pulse' : 'text-gray-400 hover:bg-gray-100'}`}
+                  title="Dicter"
+                >
+                  🎤
+                </button>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Tapez votre réponse…"
+                  rows={1}
+                  className="flex-1 py-1.5 bg-transparent border-none text-text-main placeholder:text-gray-400 outline-none resize-none text-[14px] min-h-[36px] max-h-[100px]"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={isLoading || !input.trim()}
+                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${input.trim() ? 'bg-brand-primary text-white hover:bg-brand-primary-light' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                </button>
+              </div>
+            </div>
           )}
+
+          <p className="text-center text-[11px] text-text-muted pb-4 flex-shrink-0">
+            Assistant à l'orientation MAD · pré-évaluation non engageante sur le plan médical.
+          </p>
         </main>
       )}
       </div>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Topbar } from '@/components/layout/topbar';
 import { Footer } from '@/components/layout/footer';
+import { HelliaChat } from '@/components/home/HelliaChat';
 
 const PARCOURS_MAD = [
   { href: '/parcours/aide-marche', img: '/images/parcours-marche.png', title: 'Aide à la marche', desc: "Choisir l'aide adaptée selon l'autonomie." },
@@ -60,66 +61,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Droite : carte Hellia */}
-            <div className="rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-brand-primary to-brand-primary-dark">
-              {/* Header avec avatar */}
-              <div className="flex items-center gap-5 p-6 pb-4 relative overflow-hidden">
-                <div className="absolute top-[-60px] right-[-60px] w-56 h-56 bg-brand-primary-light rounded-full mix-blend-screen filter blur-[90px] opacity-30 animate-pulse pointer-events-none" />
-
-                <div className="relative flex-shrink-0 z-10">
-                  <div className="relative">
-                    <Image
-                      src="/hellia.png"
-                      alt="Hellia, conseillère MAD IA"
-                      width={60}
-                      height={60}
-                      className="rounded-full object-cover shadow-lg border-2 border-white/20"
-                    />
-                    <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-brand-primary-dark shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1 z-10">
-                  <div className="flex items-center gap-3">
-                    <p className="text-[20px] font-extrabold text-white leading-none">Hellia</p>
-                    <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/90 tracking-wide uppercase">
-                      IA · Bêta
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-white/60 font-medium">Conseillère MAD · disponible</p>
-                  <div className="mt-1.5 rounded-xl px-4 py-2.5 text-[14px] text-white/90 font-medium bg-white/10 border border-white/10 inline-block w-fit">
-                    Comment puis-je vous aider aujourd'hui ?
-                  </div>
-                </div>
-              </div>
-
-              {/* Bouton principal */}
-              <div className="px-6 pb-6 space-y-3">
-                <Link
-                  href="/comptoir"
-                  className="flex items-center justify-between w-full rounded-2xl px-5 py-4 text-[15px] font-bold text-brand-primary bg-white hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                >
-                  <span>Lancer un questionnaire guidé</span>
-                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-accent/15 text-brand-accent flex-shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14M12 5l7 7-7 7"/>
-                    </svg>
-                  </span>
-                </Link>
-
-                <div className="flex flex-wrap gap-2">
-                  {['Déambulateur · démo', 'Lit médicalisé', 'Chute récente'].map((tag) => (
-                    <Link
-                      key={tag}
-                      href="/comptoir"
-                      className="rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/80 bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-                    >
-                      {tag}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {/* Droite : chat Hellia */}
+            <HelliaChat />
           </div>
         </section>
 
