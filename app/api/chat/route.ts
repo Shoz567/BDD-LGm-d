@@ -16,19 +16,43 @@ async function handleComptoir(req: NextRequest): Promise<NextResponse> {
   const gir = Object.keys(profil).length >= 4 ? calculerGIR(profil) : undefined;
   const systemPrompt = buildSystemPrompt(profil, gir);
 
-  const response = await mistral.chat.complete({
-    model: MISTRAL_CHAT_MODEL,
+  const FALLBACK_MODELS = ['mistral-small-latest', 'open-mistral-nemo'];
+  const chatParams = {
     messages: [
-      { role: 'system', content: systemPrompt },
+      { role: 'system' as const, content: systemPrompt },
       ...messages.slice(-12).map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
     ],
-    responseFormat: { type: 'json_object' },
+    responseFormat: { type: 'json_object' as const },
     temperature: 0.3,
     maxTokens: 400,
-  });
+  };
+
+  const is503 = (err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    return msg.includes('503') || msg.includes('overflow') || msg.includes('Service unavailable');
+  };
+
+  let response;
+  try {
+    response = await mistral.chat.complete({ model: MISTRAL_CHAT_MODEL, ...chatParams });
+  } catch (err: unknown) {
+    if (!is503(err)) throw err;
+    let lastErr = err;
+    for (const fallback of FALLBACK_MODELS) {
+      try {
+        console.warn(`[chat/comptoir] fallback vers ${fallback}`);
+        response = await mistral.chat.complete({ model: fallback, ...chatParams });
+        break;
+      } catch (fallbackErr: unknown) {
+        if (!is503(fallbackErr)) throw fallbackErr;
+        lastErr = fallbackErr;
+      }
+    }
+    if (!response) throw lastErr;
+  }
 
   const rawContent = response.choices?.[0]?.message?.content ?? '{}';
   const content = extractJson(typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent));
