@@ -205,9 +205,9 @@ export async function POST(req: NextRequest) {
     const mode = url.searchParams.get('mode') ?? 'comptoir';
 
     if (mode === 'gestion') {
-      return handleGestion(req);
+      return await handleGestion(req);
     }
-    return handleComptoir(req);
+    return await handleComptoir(req);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[chat] Erreur:', msg);
