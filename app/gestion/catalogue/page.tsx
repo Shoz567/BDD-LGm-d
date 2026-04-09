@@ -62,7 +62,7 @@ async function getProducts(searchParams: SearchParams) {
   };
 }
 
-export default async function CataloguePage({ searchParams, basePath = '/catalogue', mode = 'gestion' }: { searchParams: Promise<SearchParams>; basePath?: string; mode?: 'comptoir' | 'gestion' }) {
+export default async function CataloguePage({ searchParams, basePath = '/gestion/catalogue', mode = 'gestion' }: { searchParams: Promise<SearchParams>; basePath?: string; mode?: 'comptoir' | 'gestion' }) {
   const resolvedParams = await searchParams;
   const { products, total, page, totalPages, error } = await getProducts(resolvedParams);
 

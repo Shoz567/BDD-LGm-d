@@ -23,15 +23,18 @@ export const viewport: Viewport = {
 };
 
 import AnimatedBackground from '@/components/layout/AnimatedBackground';
+import { CartProvider } from '@/lib/cart';
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr" className={inter.variable}>
       <body suppressHydrationWarning>
         <AnimatedBackground />
-        <div className="relative z-0">
-          {children}
-        </div>
+        <CartProvider>
+          <div className="relative z-0">
+            {children}
+          </div>
+        </CartProvider>
         <Analytics />
       </body>
     </html>

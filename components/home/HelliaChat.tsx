@@ -17,6 +17,13 @@ interface Message {
 const QUESTIONNAIRE_INTENT =
   /questionnaire|évaluation\s*gir|gir\s*(complet|évaluation|test|bilan)|lancer\s*(le\s*)?(gir|questionnaire|bilan)|démarrer|commencer\s*(le\s*)?(gir|questionnaire)|comptoir/i;
 
+// Convertit [HX_REF123] en lien markdown cliquable vers la fiche produit
+function linkifyRefs(text: string, basePath = '/catalogue'): string {
+  return text.replace(/\[([A-Z][A-Z0-9_\-]{3,})\]/g, (_, ref) =>
+    `[${ref}](${basePath}/${encodeURIComponent(ref)})`
+  );
+}
+
 export function HelliaChat() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -169,9 +176,17 @@ export function HelliaChat() {
                           strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
                           ul: ({ children }) => <ul className="list-disc ml-4 mt-1 mb-1.5 space-y-0.5">{children}</ul>,
                           li: ({ children }) => <li className="text-white/80">{children}</li>,
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 px-2 py-0.5 rounded-md hover:bg-emerald-400/20 hover:text-emerald-200 transition-colors cursor-pointer"
+                            >
+                              {children}
+                            </a>
+                          ),
                         }}
                       >
-                        {m.content}
+                        {linkifyRefs(m.content)}
                       </ReactMarkdown>
                     )}
                   </div>

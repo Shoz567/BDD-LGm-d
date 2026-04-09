@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowLeft, Tag, Package, Hash, FileText } from 'lucide-react';
+import { AddToCartButton } from '@/components/catalogue/AddToCartButton';
 
 const CATEGORIE_LABEL: Record<string, string> = {
   aide_marche: 'Aide à la marche',
@@ -156,6 +157,13 @@ export function ProductDetail({ product, backHref, showPrixAchat = false }: Prod
                       </p>
                     </div>
                   )}
+
+                  <AddToCartButton
+                    reference={product.reference}
+                    nom={product.nom}
+                    prix_ttc={product.prix_ttc ?? null}
+                    image_url={product.image_url ?? null}
+                  />
 
                   {product.pdf_url && (
                     <a

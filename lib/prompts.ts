@@ -268,3 +268,82 @@ DONNÉES PLATEFORME (mis à jour régulièrement) :
 - Taux de remboursement moyen catalogue : 34% des produits éligibles LPPR
 - Fournisseurs référencés : 4 centrales d'achats
 `;
+
+// ─── Catalogue RAG helpers ────────────────────────────────────────────────────
+
+export interface CatalogueProduct {
+  reference: string;
+  nom: string;
+  categorie: string | null;
+  prix_ttc: number | null;
+  description: string | null;
+}
+
+// Mode strict (gestion) : ne cherche que si signal produit explicite
+export function isProductQuery(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+  if (lower.length < 8) return false;
+
+  const NON_PRODUCT_PATTERNS = [
+    /^(bonjour|bonsoir|salut|hello|bonne\s+journ)/,
+    /^(merci|au revoir|à bientôt|parfait|ok|d'accord|très bien)/,
+    /comment (créer|passer|valider|envoyer|modifier|supprimer|accéder|trouver|voir)\s+(une?|mon|ma|mes|les?|des?|un?|votre)/,
+    /\b(commande|devis|facture|livraison|compte|partenariat|formation|biogaran|plateforme|tableau de bord|statistique|indicateur)\b/,
+  ];
+  for (const pattern of NON_PRODUCT_PATTERNS) {
+    if (pattern.test(lower)) return false;
+  }
+
+  const PRODUCT_SIGNALS = [
+    'déambulateur', 'rollator', 'canne', 'béquille',
+    'fauteuil', 'lit médicalisé', 'lit médical', 'matelas',
+    "barre d'appui", 'barre appui', 'siège de douche', 'siège douche',
+    'rehausseur', 'réhausseur', 'lève-personne', 'lève personne',
+    'verticalisateur', 'coussin', 'escarres', 'protection', 'incontinence',
+    'aide technique', 'aides techniques', 'équipement', 'matériel',
+    'produit', 'référence', 'catalogue', 'prix', 'tarif',
+    'remboursement', 'lppr', 'disponible', 'avez-vous', 'avez vous',
+    'conseillez', 'recommandez', 'gir',
+  ];
+  return PRODUCT_SIGNALS.some((signal) => lower.includes(signal));
+}
+
+// Mode permissif (comptoir-chat) : cherche sauf salutations/phrases courtes
+export function isProductQueryComptoir(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+
+  // Trop court pour être une vraie question
+  if (lower.length < 6) return false;
+
+  // Exclure uniquement les openers purs (salutations, remerciements)
+  const PURE_SOCIAL = [
+    /^(bonjour|bonsoir|salut|hello|bonne\s+journ|coucou)/,
+    /^(merci|super|parfait|ok|oui|non|d'accord|au revoir|à bientôt|très bien|bien reçu)/,
+  ];
+  for (const p of PURE_SOCIAL) {
+    if (p.test(lower)) return false;
+  }
+
+  return true; // Par défaut on cherche — mieux vaut trop de résultats que pas assez
+}
+
+export function formatProductContext(products: CatalogueProduct[]): string {
+  if (products.length === 0) return '';
+
+  const lines = products.map((p, i) => {
+    const prix = p.prix_ttc != null ? `${p.prix_ttc.toFixed(2)} €` : 'Prix NC';
+    const cat = p.categorie ?? 'N/A';
+    const desc = p.description
+      ? ` — « ${p.description.slice(0, 80)}${p.description.length > 80 ? '…' : ''} »`
+      : '';
+    return `${i + 1}. [${p.reference}] ${p.nom} — Catégorie : ${cat} — Prix TTC : ${prix}${desc}`;
+  });
+
+  return (
+    '\n\n---\n' +
+    'PRODUITS CATALOGUE CORRESPONDANTS (données réelles LGm@d) :\n' +
+    lines.join('\n') +
+    '\nIMPORTANT : Quand tu cites un produit dans ta réponse, TOUJOURS écrire sa référence entre crochets exactement ainsi : [REFERENCE]. Ex: [HX_HEXBV25]. Ne mentionne aucun produit non listé ici.\n' +
+    '---'
+  );
+}

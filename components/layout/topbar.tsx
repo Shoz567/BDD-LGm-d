@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Settings, LogOut } from 'lucide-react';
+import { CartButton } from '@/components/layout/CartDrawer';
 
 const NAV_COMPTOIR = [
   { href: '/', label: 'Accueil', exact: true },
@@ -145,6 +146,8 @@ export function Topbar({ mode }: TopbarProps) {
             <div className="grid h-[34px] w-[34px] place-items-center rounded-[10px] bg-white/15 border border-white/20 font-extrabold text-white text-[13px]">
               AP
             </div>
+
+            <CartButton />
 
             <Link
               href="/gestion/admin"

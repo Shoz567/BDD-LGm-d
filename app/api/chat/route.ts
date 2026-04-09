@@ -1,11 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mistral, MISTRAL_CHAT_MODEL, MISTRAL_GESTION_MODEL } from '@/lib/mistral';
-import { buildSystemPrompt } from '@/lib/prompts';
-import { PROMPT_GESTION, SYSTEM_KNOWLEDGE_GESTION, PROMPT_COMPTOIR_CHAT } from '@/lib/prompts';
+import { buildSystemPrompt, PROMPT_GESTION, SYSTEM_KNOWLEDGE_GESTION, PROMPT_COMPTOIR_CHAT, isProductQuery, isProductQueryComptoir, formatProductContext, CatalogueProduct } from '@/lib/prompts';
 import { calculerGIR } from '@/lib/scoring';
 import { PatientProfile } from '@/lib/types';
 import { extractJson } from '@/lib/parseJson';
 import { fixQuickActionLabels } from '@/lib/quickActionLabels';
+import { getSupabaseAdmin } from '@/lib/supabase';
+
+// Mots vides français à exclure de la recherche catalogue
+const STOP_WORDS = new Set([
+  'le','la','les','de','du','des','un','une','et','en','au','aux',
+  'je','tu','il','elle','nous','vous','ils','elles','me','te','se',
+  'mon','ton','son','ma','ta','sa','nos','vos','leurs',
+  'que','qui','quoi','dont','comment','pourquoi',
+  'est','sont','avec','pour','sur','sous','par','dans','entre','vers',
+  'plus','très','bien','aussi','même','tout','tous','toute','toutes',
+  'avez','avez-vous','pouvez','faire','besoin','cherche',
+  'voulez','souhaitez','chercher','trouver','voir','avoir',
+  'pour','avec','sans','chez','mais','donc','alors','aussi',
+]);
+
+function extractKeywords(message: string): string[] {
+  return message
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // enlever accents pour comparaison
+    .replace(/[?!.,;:'"()]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w))
+    .slice(0, 6);
+}
+
+async function searchCatalogue(query: string): Promise<CatalogueProduct[]> {
+  if (query.trim().length < 3) return [];
+
+  const keywords = extractKeywords(query);
+  if (keywords.length === 0) return [];
+
+  try {
+    const seen = new Set<string>();
+    const results: CatalogueProduct[] = [];
+
+    // Chercher avec chaque mot-clé en parallèle puis fusionner
+    const searches = await Promise.all(
+      keywords.slice(0, 4).map(kw =>
+        getSupabaseAdmin()
+          .from('products')
+          .select('reference, nom, categorie, prix_ttc, description')
+          .or(`nom.ilike.%${kw}%,description.ilike.%${kw}%,reference.ilike.%${kw}%`)
+          .limit(4)
+      )
+    );
+
+    // Trier par pertinence : priorité aux produits qui matchent plusieurs mots-clés
+    const counts = new Map<string, number>();
+    const productMap = new Map<string, CatalogueProduct>();
+
+    for (const { data } of searches) {
+      for (const p of data ?? []) {
+        counts.set(p.reference, (counts.get(p.reference) ?? 0) + 1);
+        productMap.set(p.reference, p as CatalogueProduct);
+      }
+    }
+
+    // Trier par nombre de mots-clés matchés (descend)
+    const sorted = [...productMap.values()].sort(
+      (a, b) => (counts.get(b.reference) ?? 0) - (counts.get(a.reference) ?? 0)
+    );
+
+    for (const p of sorted) {
+      if (!seen.has(p.reference) && results.length < 6) {
+        seen.add(p.reference);
+        results.push(p);
+      }
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
 
 // ─── Mode Comptoir ────────────────────────────────────────────────────────────
 
@@ -156,6 +229,14 @@ async function handleComptoir(req: NextRequest): Promise<NextResponse> {
 async function handleGestion(req: NextRequest): Promise<Response> {
   const { messages }: { messages: { role: string; content: string }[] } = await req.json();
 
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+  let systemPrompt = PROMPT_GESTION + SYSTEM_KNOWLEDGE_GESTION;
+  if (isProductQuery(lastUserMessage)) {
+    const products = await searchCatalogue(lastUserMessage);
+    const context = formatProductContext(products);
+    if (context) systemPrompt += context;
+  }
+
   const mistralRes = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -165,7 +246,7 @@ async function handleGestion(req: NextRequest): Promise<Response> {
     body: JSON.stringify({
       model: MISTRAL_GESTION_MODEL,
       messages: [
-        { role: 'system', content: PROMPT_GESTION + SYSTEM_KNOWLEDGE_GESTION },
+        { role: 'system', content: systemPrompt },
         ...messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
       ],
       stream: true,
@@ -225,6 +306,14 @@ async function handleGestion(req: NextRequest): Promise<Response> {
 async function handleComptoirChat(req: NextRequest): Promise<Response> {
   const { messages }: { messages: { role: string; content: string }[] } = await req.json();
 
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+  let systemPrompt = PROMPT_COMPTOIR_CHAT;
+  if (isProductQueryComptoir(lastUserMessage)) {
+    const products = await searchCatalogue(lastUserMessage);
+    const context = formatProductContext(products);
+    if (context) systemPrompt += context;
+  }
+
   const mistralRes = await fetch('https://api.mistral.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -234,7 +323,7 @@ async function handleComptoirChat(req: NextRequest): Promise<Response> {
     body: JSON.stringify({
       model: MISTRAL_GESTION_MODEL,
       messages: [
-        { role: 'system', content: PROMPT_COMPTOIR_CHAT },
+        { role: 'system', content: systemPrompt },
         ...messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
       ],
       stream: true,
