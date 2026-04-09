@@ -36,17 +36,32 @@ export async function POST(req: NextRequest) {
 
       candidateProduits = vectorResults ?? [];
     } catch (vectorError) {
-      console.warn('[recommend] Vector search failed, falling back to keyword search:', vectorError);
+      console.warn('[recommend] Vector search failed, falling back to category search:', vectorError);
 
-      // Fallback: full-text search using Postgres tsvector
-      const searchQuery = getPriorityKeywords(profil).slice(0, 5).join(' | ');
-      const { data: fallbackResults } = await getSupabaseAdmin()
+      // Fallback : recherche par catégorie (colonne `categorie` = snake_case, ex. 'aide_marche')
+      const fallbackCategories = (profil.priorites?.length ? profil.priorites : getCategoriesByGIR(gir.niveau)) as string[];
+
+      const { data: categoryResults } = await getSupabaseAdmin()
         .from('products')
-        .select('*')
-        .textSearch('nom', searchQuery, { type: 'plain', config: 'french' })
+        .select('reference, nom, description, categorie, prix_ttc, base_lppr, image_url')
+        .in('categorie', fallbackCategories)
         .limit(20);
 
-      candidateProduits = fallbackResults ?? [];
+      candidateProduits = categoryResults ?? [];
+
+      // Si toujours vide (catégories absentes ?), cherche par mots-clés ilike
+      if (candidateProduits.length === 0) {
+        const keywords = getPriorityKeywords(profil).slice(0, 3);
+        if (keywords.length > 0) {
+          const orFilter = keywords.map((kw) => `nom.ilike.%${kw}%`).join(',');
+          const { data: kwResults } = await getSupabaseAdmin()
+            .from('products')
+            .select('reference, nom, description, categorie, prix_ttc, base_lppr, image_url')
+            .or(orFilter)
+            .limit(20);
+          candidateProduits = kwResults ?? [];
+        }
+      }
     }
 
     if (candidateProduits.length === 0) {
@@ -55,30 +70,34 @@ export async function POST(req: NextRequest) {
 
     // 4. AI ranking of top candidates
     const rankingPrompt = buildRecommendationPrompt(profil, gir, candidateProduits);
-    const FALLBACK_MODEL = 'mistral-small-latest';
-    let rankingResponse;
-    try {
-      rankingResponse = await mistral.chat.complete({
-        model: MISTRAL_RECOMMEND_MODEL,
-        messages: [{ role: 'user', content: rankingPrompt }],
-        responseFormat: { type: 'json_object' },
-        temperature: 0.2,
-        maxTokens: 2500,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('503') || msg.includes('Service unavailable')) {
-        console.warn(`[recommend] ${MISTRAL_RECOMMEND_MODEL} 503 — falling back to ${FALLBACK_MODEL}`);
+    const FALLBACK_MODELS = ['mistral-small-latest', 'open-mistral-nemo'];
+
+    let rankingResponse = null;
+    for (const model of [MISTRAL_RECOMMEND_MODEL, ...FALLBACK_MODELS]) {
+      try {
         rankingResponse = await mistral.chat.complete({
-          model: FALLBACK_MODEL,
+          model,
           messages: [{ role: 'user', content: rankingPrompt }],
           responseFormat: { type: 'json_object' },
           temperature: 0.2,
           maxTokens: 2500,
         });
-      } else {
-        throw err;
+        break;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[recommend] ${model} failed (${msg.slice(0, 80)}), essai modèle suivant…`);
       }
+    }
+
+    // Si tous les modèles ont échoué, retourner les produits sans ranking IA
+    if (!rankingResponse) {
+      console.error('[recommend] Tous les modèles ont échoué — retour des produits bruts');
+      const produitsBruts = candidateProduits.slice(0, 5).map((p, i) => ({
+        ...p,
+        justification: 'Produit sélectionné selon votre profil et vos priorités.',
+        priorite: i + 1,
+      }));
+      return NextResponse.json({ produits: produitsBruts, messageGlobal: null, gir });
     }
 
     const rawContent = rankingResponse.choices?.[0]?.message?.content ?? '{}';
@@ -96,7 +115,13 @@ export async function POST(req: NextRequest) {
       }
     } catch (parseError) {
       console.error('[recommend] JSON parse error:', parseError, 'Raw content:', rawContent);
-      return NextResponse.json({ error: 'Erreur lors de l\'analyse des recommandations' }, { status: 500 });
+      // Fallback : retourner les produits bruts plutôt qu'une erreur 500
+      const produitsBruts = candidateProduits.slice(0, 5).map((p, i) => ({
+        ...p,
+        justification: 'Produit sélectionné selon votre profil et vos priorités.',
+        priorite: i + 1,
+      }));
+      return NextResponse.json({ produits: produitsBruts, messageGlobal: null, gir });
     }
 
     // 5. Merge with full product data

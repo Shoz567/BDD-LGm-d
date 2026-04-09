@@ -1,12 +1,12 @@
 import { PatientProfile, GIRScore } from './types';
 
 /**
- * Calcul du score GIR version 2.0 — Pondéré, aligné sur la grille AGGIR officielle
- * 
- * Variables et poids :
+ * Calcul du score GIR v2.1 — Pondéré, aligné sur les 10 variables discriminantes AGGIR
+ *
+ * Variables AGGIR et poids :
  * - Cohérence  (×2)   — très discriminant GIR 1-2
  * - Orientation (×2)  — très discriminant GIR 1-3
- * - Toilette corporelle (×1.5) 
+ * - Toilette corporelle (×1.5)
  * - Habillage (×1)
  * - Alimentation (×1)
  * - Élimination/continence (×1.5)
@@ -14,11 +14,15 @@ import { PatientProfile, GIRScore } from './types';
  * - Déplacements intérieurs (×1)
  * - Déplacements extérieurs (×0.5)
  * - Communication à distance (×0.5)
- * - Situation aggravante récente (×1)
  * - Bonus âge 80+ (+1)
  *
- * Score max théorique ≈ 28
- * Seuils GIR recalibrés sur cette échelle
+ * NOTE : situationRecente n'est PAS une variable AGGIR — elle n'est pas
+ * incluse dans le score (évite de sur-estimer la dépendance). Elle est
+ * conservée dans le profil pour le contexte des recommandations produits.
+ *
+ * Seuils validés sur les 6 personas de référence (GIR 1 à 6) :
+ *   ≤ 3 → GIR 6 | ≤ 7 → GIR 5 | ≤ 13 → GIR 4
+ *   ≤ 20 → GIR 3 | ≤ 23 → GIR 2 | > 23 → GIR 1
  */
 export function calculerGIR(profil: Partial<PatientProfile>): GIRScore {
   let score = 0;
@@ -74,11 +78,6 @@ export function calculerGIR(profil: Partial<PatientProfile>): GIRScore {
   detail['Communication'] = com;
   score += com;
 
-  // Situation aggravante récente (×1)
-  const sit = profil.situationRecente ?? 0;
-  detail['Situation récente'] = sit;
-  score += sit;
-
   // Bonus âge
   const age = profil.age;
   if (age === '81-90' || age === '90+') {
@@ -119,7 +118,7 @@ function scoreToGIR(score: number): GIRScore {
       eligibleAPA: false,
     };
   }
-  if (score <= 11) {
+  if (score <= 13) {
     return {
       niveau: 4,
       scoreTotal: score,
@@ -128,7 +127,7 @@ function scoreToGIR(score: number): GIRScore {
       eligibleAPA: true,
     };
   }
-  if (score <= 16) {
+  if (score <= 20) {
     return {
       niveau: 3,
       scoreTotal: score,
@@ -137,7 +136,7 @@ function scoreToGIR(score: number): GIRScore {
       eligibleAPA: true,
     };
   }
-  if (score <= 21) {
+  if (score <= 23) {
     return {
       niveau: 2,
       scoreTotal: score,

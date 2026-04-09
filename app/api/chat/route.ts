@@ -83,11 +83,11 @@ async function searchCatalogue(query: string): Promise<CatalogueProduct[]> {
 // ─── Mode Comptoir ────────────────────────────────────────────────────────────
 
 async function handleComptoir(req: NextRequest): Promise<NextResponse> {
-  const { messages, profil }: { messages: { role: string; content: string }[]; profil: Partial<PatientProfile> } =
+  const { messages, profil, lastStep }: { messages: { role: string; content: string }[]; profil: Partial<PatientProfile>; lastStep?: string } =
     await req.json();
 
   const gir = Object.keys(profil).length >= 4 ? calculerGIR(profil) : undefined;
-  const systemPrompt = buildSystemPrompt(profil, gir);
+  const systemPrompt = buildSystemPrompt(profil, gir, lastStep);
 
   const FALLBACK_MODELS = ['mistral-small-latest', 'open-mistral-nemo'];
   const chatParams = {
@@ -152,16 +152,16 @@ async function handleComptoir(req: NextRequest): Promise<NextResponse> {
   // on injecte la question canonique du step pour éviter les messages de transition sans question.
   const STEP_QUESTIONS: Record<string, string> = {
     respondant: 'Répondez-vous pour vous-même ou pour un proche ?',
-    age: 'Quel est votre âge ?',
+    age: 'Dans quelle tranche d\'âge vous situez-vous ?',
     sexe: 'Êtes-vous un homme ou une femme ?',
-    coherence: 'La lucidité est-elle toujours présente ?',
+    coherence: 'La lucidité et l\'orientation sont-elles toujours présentes ?',
     mobilite: 'Comment se passent les déplacements à l\'intérieur ?',
     deplacementExterieur: 'Et pour les sorties extérieures ?',
-    transferts: 'Pour se lever et s\'asseoir, y a-t-il besoin d\'aide ?',
-    toilette: 'Et pour la toilette ?',
+    transferts: 'Pour bien vous orienter sur les équipements, pouvez-vous me dire si se lever et s\'asseoir se fait seul(e) ?',
+    toilette: 'Et pour la toilette, y a-t-il besoin d\'aide ?',
     habillage: 'Et pour s\'habiller ?',
     alimentation: 'Et pour les repas ?',
-    elimination: 'Y a-t-il des difficultés pour la continence ?',
+    elimination: 'Concernant la continence, y a-t-il des difficultés ?',
     communication: 'Peut-il/elle utiliser le téléphone seul(e) ?',
     situationRecente: 'Y a-t-il eu un événement récent (chute, hospitalisation) ?',
     priorites: 'Quels sont vos besoins prioritaires en équipement ?',

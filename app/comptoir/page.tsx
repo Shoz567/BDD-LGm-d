@@ -64,6 +64,7 @@ export default function ComptoirPage() {
   const [viewMode, setViewMode] = useState<'chat' | 'report'>('chat');
   const [, setIsRecommending] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+  const [ordonnanceStepSent, setOrdonnanceStepSent] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -135,12 +136,14 @@ export default function ComptoirPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000);
 
+      const lastAssistantStep = [...messages].reverse().find(m => m.role === 'assistant')?.metadata?.step;
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMessage].map((m) => ({ role: m.role, content: m.content })),
           profil,
+          lastStep: lastAssistantStep,
         }),
         signal: controller.signal,
       });
@@ -163,11 +166,14 @@ export default function ComptoirPage() {
 
       if (data.step === 'ordonnance' && !data.isComplete) {
         setShowOrdonnance(true);
+        setOrdonnanceStepSent(true);
       } else {
         setShowOrdonnance(false);
       }
 
-      if (data.isComplete && latestGIR) {
+      // Garde-fou : si le modèle ne renvoie pas isComplete après l'ordonnance, on force la fin
+      const shouldComplete = data.isComplete || (ordonnanceStepSent && data.step === 'ordonnance');
+      if (shouldComplete && latestGIR) {
         fetchRecommendations(latestProfil, latestGIR);
       }
 
@@ -253,8 +259,10 @@ export default function ComptoirPage() {
     }
   };
 
-  const completedSteps = Object.keys(profil).length;
-  const totalSteps = 10;
+  // 15 étapes max, jusqu'à 2 skips possibles → affiche sur 13
+  const PROFIL_AGGIR_KEYS = ['respondant','age','sexe','coherence','mobilite','deplacementExterieur','transferts','toilette','habillage','alimentation','elimination','communication','situationRecente','priorites'];
+  const completedSteps = PROFIL_AGGIR_KEYS.filter(k => profil[k as keyof typeof profil] !== undefined).length;
+  const totalSteps = 13;
   const progress = Math.min((completedSteps / totalSteps) * 100, 100);
 
   const lastMsg = messages[messages.length - 1];

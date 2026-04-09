@@ -124,7 +124,7 @@ export type ConversationStep =
   | 'sexe'
   | 'coherence'
   | 'mobilite'
-  | 'deplacement_ext'
+  | 'deplacementExterieur'
   | 'transferts'
   | 'toilette'
   | 'habillage'
