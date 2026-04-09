@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(curl -I \"https://www.techniciendesante.fr/4093754-large_default/ceinture-de-transfert-ready-belt-taille-s.jpg\")",
+      "Bash(cut -d'|' -f1,8)",
+      "Bash(python -c \"from curl_cffi import requests as cf; r = cf.get\\(''''https://www.techniciendesante.fr/4093754-large_default/ceinture-de-transfert-ready-belt-taille-s.jpg'''', impersonate=''''chrome120''''\\); print\\(r.status_code, len\\(r.content\\)\\)\")",
+      "Bash(python -c ':*)"
+    ]
+  }
+}
