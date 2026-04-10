@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Send } from 'lucide-react';
+import { ArrowRight, Send, Mic, MicOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -12,6 +12,23 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
+
+// Types pour l'API Web Speech (absent de certaines versions des lib DOM TypeScript)
+type ISpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+type SpeechRecognitionCtor = new () => ISpeechRecognition;
+type WindowWithSpeech = Window & {
+  SpeechRecognition?: SpeechRecognitionCtor;
+  webkitSpeechRecognition?: SpeechRecognitionCtor;
+};
 
 // Détecte si le message exprime l'intention de lancer le questionnaire GIR
 const QUESTIONNAIRE_INTENT =
@@ -30,7 +47,9 @@ export function HelliaChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -90,6 +109,35 @@ export function HelliaChat() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleListening = () => {
+    const win = window as WindowWithSpeech;
+    const SpeechRecognitionCtor = win.SpeechRecognition ?? win.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'fr-FR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => (prev ? prev + ' ' + transcript : transcript));
+    };
+
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -216,6 +264,18 @@ export function HelliaChat() {
             disabled={isLoading}
             className="flex-1 bg-transparent py-2.5 text-[13px] text-white placeholder:text-white/30 focus:outline-none disabled:opacity-50"
           />
+          <button
+            onClick={toggleListening}
+            disabled={isLoading}
+            className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ background: isListening ? 'rgba(220,38,38,0.2)' : 'transparent' }}
+            aria-label={isListening ? 'Arrêter la dictée' : 'Dicter un message'}
+            title={isListening ? 'Arrêter la dictée' : 'Dicter un message'}
+          >
+            {isListening
+              ? <MicOff className="w-3.5 h-3.5 text-red-400" />
+              : <Mic className="w-3.5 h-3.5 text-white/40" />}
+          </button>
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}

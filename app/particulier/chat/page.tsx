@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, RotateCcw, ArrowLeft } from 'lucide-react';
+import { Send, RotateCcw, ArrowLeft, Mic, MicOff } from 'lucide-react';
 import Link from 'next/link';
 
 interface Message {
@@ -33,8 +33,10 @@ export default function ParticulierChatPage() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,6 +88,39 @@ export default function ParticulierChatPage() {
       e.preventDefault();
       sendMessage(input);
     }
+  };
+
+  const toggleListening = () => {
+    // Vérification support navigateur
+    const SpeechRecognitionAPI =
+      window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition: typeof SpeechRecognition }).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert('La reconnaissance vocale n\'est pas supportée par votre navigateur.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'fr-FR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => (prev ? prev + ' ' + transcript : transcript));
+    };
+
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
 
   const reset = () => {
@@ -210,7 +245,7 @@ export default function ParticulierChatPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Écrivez votre message… (Entrée pour envoyer)"
+          placeholder="Posez une question à Hellia…"
           disabled={isLoading}
           rows={1}
           style={{
@@ -227,6 +262,28 @@ export default function ParticulierChatPage() {
             fontFamily: 'inherit',
           }}
         />
+        <button
+          onClick={toggleListening}
+          disabled={isLoading}
+          title={isListening ? 'Arrêter l\'écoute' : 'Dicter un message'}
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            background: isListening ? 'rgba(220, 38, 38, 0.08)' : 'transparent',
+            border: isListening ? '1.5px solid rgba(220, 38, 38, 0.25)' : '1.5px solid #e3e9e5',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'all .15s',
+          }}
+        >
+          {isListening
+            ? <MicOff size={16} color="#dc2626" />
+            : <Mic size={16} color="#7aa087" />}
+        </button>
         <button
           onClick={() => sendMessage(input)}
           disabled={!input.trim() || isLoading}
